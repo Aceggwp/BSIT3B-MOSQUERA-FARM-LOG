@@ -10,7 +10,7 @@ quick-log shortcuts, AI advice (Gemini / OpenRouter), role-based auth
 
 - Mosquera, Carl John
 - Lirazan, Adrian
-- Lucasan, Arc Xerlan — BSIT 3-B
+- Lucasan, Arc Xerlan 
 
 ## Run locally
 
