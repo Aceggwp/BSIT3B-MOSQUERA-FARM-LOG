@@ -1,0 +1,27 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center">
+<div class="col"><div class="page-pretitle">Mosquera Farm Log</div><h2 class="page-title">Reminders — Custom Alerts</h2></div>
+<div class="col-auto"><div class="btn-group"><a href="?show=due" class="btn {% if show == 'due' %}btn-primary{% else %}btn-outline-primary{% endif %}">Due</a><a href="?show=all" class="btn {% if show == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">All</a><a href="?show=done" class="btn {% if show == 'done' %}btn-primary{% else %}btn-outline-primary{% endif %}">Done</a></div>
+<button class="btn btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#remModal">+ Reminder</button></div></div></div><br>
+<div class="card"><div class="list-group list-group-flush">
+{% for r in reminders %}<div class="list-group-item d-flex justify-content-between align-items-center">
+<div><strong>{{ r.plant.name }}</strong> — {{ r.message }}<br><small class="text-muted">{{ r.get_kind_display }} · due {{ r.due_date }}{% if r.is_done %} · done{% elif r.due_date < today %} · overdue{% endif %}{% if r.weather_paused %} · paused for rain{% endif %}</small></div>
+<div class="d-flex gap-1"><form method="post" action="{% url 'farm:reminder_toggle_ajax' r.id %}" class="toggle-form m-0">{% csrf_token %}<button class="btn btn-sm {% if r.is_done %}btn-ghost-secondary{% else %}btn-success{% endif %}">{% if r.is_done %}Undo{% else %}Done{% endif %}</button></form></div>
+</div>{% empty %}<div class="list-group-item text-muted">No reminders.</div>{% endfor %}
+</div></div>
+<div class="modal modal-blur fade" id="remModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title">Add Reminder</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<form id="remForm">{% csrf_token %}<div class="modal-body"><div class="row g-2">
+<div class="col-12"><label class="form-label">Plant</label><select name="plant" class="form-select">{% for p in plants %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+<div class="col-6"><label class="form-label">Kind</label><select name="kind" class="form-select"><option value="water">Water</option><option value="fertilize">Fertilize</option><option value="harvest">Harvest</option><option value="custom">Custom</option></select></div>
+<div class="col-6"><label class="form-label">Due date</label><input type="date" name="due_date" class="form-control" value="{% now 'Y-m-d' %}"></div>
+<div class="col-12"><label class="form-label">Message</label><input name="message" class="form-control" placeholder="e.g. Water the lettuce today"></div>
+</div></div><div class="modal-footer"><button class="btn btn-primary w-100">Save</button></div></form></div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('remForm').addEventListener('submit',e=>{e.preventDefault();const f=e.target;fetch('{% url "farm:reminder_save_ajax" %}',{method:'POST',headers:{'X-CSRFToken':f.querySelector('[name=csrfmiddlewaretoken]').value},body:new FormData(f)}).then(r=>r.json()).then(()=>location.reload());});
+document.querySelectorAll('.toggle-form').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();fetch(f.action,{method:'POST',headers:{'X-CSRFToken':f.querySelector('[name=csrfmiddlewaretoken]').value}}).then(()=>location.reload());}));
+</script>
+{% endblock %}

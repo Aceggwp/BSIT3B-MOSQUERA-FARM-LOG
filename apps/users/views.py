@@ -10,6 +10,12 @@ from django.db.models import Q
 
 
 def _is_superuser(user):
+    """Only admins (superusers) may manage users.
+
+    Permission matrix:
+    - Admin (is_superuser): everything — users, info, farm, admin site.
+    - Staff (is_staff): own dashboard, info records, and farm only.
+    """
     return user.is_superuser
 
 

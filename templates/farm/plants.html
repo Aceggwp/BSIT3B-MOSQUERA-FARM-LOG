@@ -1,0 +1,109 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none">
+  <div class="row align-items-center">
+    <div class="col"><div class="page-pretitle">Mosquera Farm Log</div><h2 class="page-title">Plants — Planting & Harvest Tracking</h2></div>
+    <div class="col-auto"><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#plantModal" data-mode="create"><i class="fas fa-plus me-2"></i>Add Plant</button></div>
+  </div>
+</div>
+<br>
+<form method="GET" class="mb-2" style="max-width:420px"><div class="input-group"><input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search plants..."><button class="btn btn-primary">Search</button></div></form>
+<div class="card"><div class="table-responsive"><table class="table table-vcenter card-table">
+<thead><tr><th>Plant</th><th>Planted</th><th>Harvest ETA</th><th>Status</th><th>Area</th>{% if user.is_superuser %}<th>Owner</th>{% endif %}<th></th></tr></thead>
+<tbody>
+{% for p in plants %}
+<tr>
+<td><a href="{% url 'farm:plant_detail' p.id %}"><strong>{{ p.name }}</strong></a> <span class="text-muted">{{ p.variety }}</span></td>
+<td>{{ p.planting_date }}</td>
+<td>{{ p.expected_harvest_date }} <span class="badge bg-secondary-lt">{{ p.days_until_harvest }}d</span></td>
+<td><span class="badge bg-green-lt">{{ p.get_status_display }}</span></td>
+<td class="text-muted">{{ p.area|default:"—" }}</td>
+{% if user.is_superuser %}<td class="text-muted">{{ p.user.username }}</td>{% endif %}
+<td><button class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#plantModal" data-mode="edit" data-id="{{ p.id }}">Edit</button>
+<a class="btn btn-sm btn-outline-primary" href="{% url 'farm:plant_detail' p.id %}">Open</a></td>
+</tr>
+{% empty %}<tr><td colspan="{% if user.is_superuser %}7{% else %}6{% endif %}" class="text-center text-muted py-4">No plants yet. Add your first vegetable.</td></tr>{% endfor %}
+</tbody></table></div></div>
+
+<div class="modal modal-blur fade" id="plantModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title" id="plantModalTitle">Add Plant</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<form id="plantForm">{% csrf_token %}<input type="hidden" name="id" id="plant_id">
+<div class="modal-body"><div id="plantErr" class="alert alert-danger d-none"></div>
+<div class="row g-2">
+<div class="col-6"><label class="form-label">Vegetable *</label><input name="name" id="plant_name" class="form-control" placeholder="Lettuce / Tomato..." required></div>
+<div class="col-6"><label class="form-label">Variety</label><input name="variety" id="plant_variety" class="form-control"></div>
+<div class="col-6"><label class="form-label">Planting date</label><input type="date" name="planting_date" id="plant_date" class="form-control"></div>
+<div class="col-6"><label class="form-label">Status</label><select name="status" id="plant_status" class="form-select"><option value="seed">Seed</option><option value="seedling" selected>Seedling</option><option value="growing">Growing</option><option value="flowering">Flowering</option><option value="ready">Ready to harvest</option><option value="harvested">Harvested</option><option value="dead">Dead</option></select></div>
+<div class="col-4"><label class="form-label">Days to harvest</label><input type="number" name="days_to_harvest" id="plant_dth" class="form-control" min="1" placeholder="auto"></div>
+<div class="col-4"><label class="form-label">Water every (days)</label><input type="number" name="water_every_days" id="plant_water" class="form-control" min="1" placeholder="auto"></div>
+<div class="col-4"><label class="form-label">Fertilize every (days)</label><input type="number" name="fertilize_every_days" id="plant_fert" class="form-control" min="1" placeholder="auto"></div>
+<div class="col-12"><label class="form-label">Plot <span class="text-muted" id="plotHint">— pick a plot, then tap a cell</span></label><select name="area" id="plant_area" class="form-select"><option value="">— unplaced —</option>{% for a in areas %}<option value="{{ a.id }}" data-rows="{{ a.rows }}" data-cols="{{ a.cols }}">{{ a.name }} ({{ a.rows }}×{{ a.cols }} {{ a.get_kind_display|lower }})</option>{% endfor %}</select></div>
+<div class="col-12 d-none" id="cellPickerWrap"><div id="cellPicker" class="d-grid gap-1"></div></div>
+<div class="col-4"><label class="form-label">Cell X <small class="text-muted">(col)</small></label><input type="number" name="pos_x" id="plant_x" class="form-control" value="0" min="0"></div>
+<div class="col-4"><label class="form-label">Cell Y <small class="text-muted">(row)</small></label><input type="number" name="pos_y" id="plant_y" class="form-control" value="0" min="0"></div>
+<div class="col-4"><label class="form-label">Qty</label><input type="number" name="quantity" id="plant_qty" class="form-control" value="1" min="1"></div>
+<div class="col-12"><label class="form-label">Notes</label><textarea name="notes" id="plant_notes" class="form-control" rows="2"></textarea></div>
+<p class="text-muted small mb-0">Tip: leave harvest/water/fertilize blank to auto-fill tailored defaults per vegetable (e.g. lettuce vs tomato).</p>
+</div></div>
+<div class="modal-footer"><button class="btn btn-ghost-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" type="submit">Save</button></div>
+</form></div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+  const modal=document.getElementById('plantModal'), form=document.getElementById('plantForm'), err=document.getElementById('plantErr');
+  const areaSel=document.getElementById('plant_area'), xInput=document.getElementById('plant_x'), yInput=document.getElementById('plant_y');
+  const picker=document.getElementById('cellPicker'), pickerWrap=document.getElementById('cellPickerWrap'), hint=document.getElementById('plotHint');
+  const AREA_MAP={{ area_map_json|safe }};
+  function renderPicker(){
+    const id=areaSel.value;
+    picker.innerHTML='';
+    if(!id||!AREA_MAP[id]){pickerWrap.classList.add('d-none');hint.textContent='— pick a plot, then tap a cell';return;}
+    const info=AREA_MAP[id];
+    pickerWrap.classList.remove('d-none');
+    hint.textContent='— '+info.cols+' cols × '+info.rows+' rows, tap a cell';
+    picker.style.gridTemplateColumns='repeat('+info.cols+', 1fr)';
+    const taken={};
+    (info.cells||[]).forEach(c=>{taken[c[0]+','+c[1]]=c[2];});
+    const cx=parseInt(xInput.value||'0',10), cy=parseInt(yInput.value||'0',10);
+    for(let y=0;y<info.rows;y++)for(let x=0;x<info.cols;x++){
+      const b=document.createElement('button');
+      b.type='button';
+      const who=taken[x+','+y];
+      b.className='btn btn-sm '+(x===cx&&y===cy?'btn-primary':who?'btn-success-lt':'btn-outline-secondary');
+      b.textContent=who?('🌱 '+who):(x+','+y);
+      b.title=who?('Taken by '+who+' — click to share cell'):('Plant at '+x+','+y);
+      (function(xx,yy){b.addEventListener('click',()=>{xInput.value=xx;yInput.value=yy;renderPicker();});})(x,y);
+      picker.appendChild(b);
+    }
+  }
+  areaSel.addEventListener('change',renderPicker);
+  xInput.addEventListener('input',renderPicker);
+  yInput.addEventListener('input',renderPicker);
+  modal.addEventListener('show.bs.modal', e=>{
+    const b=e.relatedTarget; form.reset(); err.classList.add('d-none');
+    document.getElementById('plantModalTitle').textContent='Add Plant';
+    renderPicker();
+    if(b&&b.getAttribute('data-mode')==='edit'){
+      document.getElementById('plantModalTitle').textContent='Edit Plant';
+      fetch('/farm/ajax/plants/get/'+b.getAttribute('data-id')+'/')
+        .then(r=>r.json()).then(d=>{
+          document.getElementById('plant_id').value=d.id; document.getElementById('plant_name').value=d.name;
+          document.getElementById('plant_variety').value=d.variety; document.getElementById('plant_date').value=d.planting_date;
+          document.getElementById('plant_status').value=d.status; document.getElementById('plant_dth').value=d.days_to_harvest;
+          document.getElementById('plant_water').value=d.water_every_days; document.getElementById('plant_fert').value=d.fertilize_every_days;
+          document.getElementById('plant_area').value=d.area||''; document.getElementById('plant_x').value=d.pos_x;
+          document.getElementById('plant_y').value=d.pos_y; document.getElementById('plant_qty').value=d.quantity;
+          document.getElementById('plant_notes').value=d.notes;
+          renderPicker();
+        });
+    }
+  });
+  form.addEventListener('submit', e=>{
+    e.preventDefault();
+    fetch('{% url "farm:plant_save_ajax" %}',{method:'POST',headers:{'X-CSRFToken':form.querySelector('[name=csrfmiddlewaretoken]').value},body:new FormData(form)})
+      .then(r=>r.json()).then(d=>{ if(d.error){err.textContent=d.error;err.classList.remove('d-none');return;} window.location.reload(); });
+  });
+})();
+</script>
+{% endblock %}

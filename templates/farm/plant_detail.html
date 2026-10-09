@@ -1,0 +1,45 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center">
+<div class="col"><div class="page-pretitle">Mosquera Farm Log</div><h2 class="page-title">{{ plant.name }} {% if plant.variety %}<small class="text-muted">{{ plant.variety }}</small>{% endif %}</h2>
+<div class="text-muted">Planted {{ plant.planting_date }} · Harvest ETA {{ plant.expected_harvest_date }} ({{ plant.days_until_harvest }} days) · {{ plant.get_status_display }}</div></div>
+<div class="col-auto"><a href="{% url 'farm:plant_list' %}" class="btn">Back</a>
+<form method="post" action="{% url 'farm:plant_generate_reminders' plant.id %}" style="display:inline" class="gen-form">{% csrf_token %}<button class="btn btn-outline-primary">Generate reminders</button></form>
+<form method="post" action="{% url 'farm:ai_advice_ajax' plant.id %}" style="display:inline" id="aiForm">{% csrf_token %}<button class="btn btn-purple" id="aiBtn">✨ Ask AI</button></form></div>
+</div></div>
+<div id="aiResult" class="alert alert-purple-lt d-none mt-2" role="alert"></div><br>
+<div class="row row-deck row-cards">
+<div class="col-lg-4"><div class="card"><div class="card-header"><h3 class="card-title">Custom Reminders</h3></div>
+<div class="list-group list-group-flush">{% for r in reminders %}<div class="list-group-item d-flex justify-content-between"><div>{% if r.is_done %}<s>{{ r.message }}</s>{% else %}{{ r.message }}{% endif %}<br><small class="text-muted">{{ r.get_kind_display }} · {{ r.due_date }}{% if r.weather_paused %} · paused for rain{% endif %}</small></div>
+<form method="post" action="{% url 'farm:reminder_toggle_ajax' r.id %}" class="toggle-form m-0">{% csrf_token %}<button class="btn btn-sm {% if r.is_done %}btn-ghost-secondary{% else %}btn-success{% endif %}">{% if r.is_done %}Undo{% else %}Done{% endif %}</button></form></div>
+{% empty %}<div class="list-group-item text-muted">No reminders.</div>{% endfor %}</div></div></div>
+<div class="col-lg-4"><div class="card"><div class="card-header"><h3 class="card-title">Care History</h3></div><div class="card-body">
+<form id="logForm">{% csrf_token %}<div class="row g-2"><div class="col-6"><input type="date" name="date" class="form-control" value="{% now 'Y-m-d' %}"></div>
+<div class="col-6"><select name="category" class="form-select"><option value="growth">Growth</option><option value="pest">Pest</option><option value="weather">Weather</option><option value="note">Note</option></select></div>
+<div class="col-12"><textarea name="description" class="form-control" rows="2" placeholder="Growth progress, pest issue, weather change..." required></textarea></div>
+<div class="col-12"><label class="form-label">Progress photo <span class="text-muted">(optional, JPG/PNG/WEBP/GIF ≤ 5 MB)</span></label><input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif"></div>
+<div class="col-12"><button class="btn btn-primary w-100">Add log</button></div></div></form><hr>
+<div class="list-group list-group-flush">{% for l in logs %}<div class="list-group-item"><strong>{{ l.get_category_display }}</strong> · {{ l.date }}<br>{{ l.description }}{% if l.photo %}<br><a href="{{ l.photo.url }}" target="_blank"><img src="{{ l.photo.url }}" alt="Care photo {{ l.date }}" class="img-thumbnail mt-2" style="max-height:140px;"></a>{% endif %}</div>{% empty %}<div class="text-muted">No logs yet.</div>{% endfor %}</div>
+</div></div></div>
+<div class="col-lg-4"><div class="card"><div class="card-header"><h3 class="card-title">Daily Monitoring</h3></div><div class="card-body">
+<form id="checkForm">{% csrf_token %}<div class="row g-2"><div class="col-12"><input type="date" name="date" class="form-control" value="{% now 'Y-m-d' %}"></div>
+<div class="col-6"><label class="form-check"><input type="checkbox" name="watered" value="true" class="form-check-input"> Watered</label></div>
+<div class="col-6"><label class="form-check"><input type="checkbox" name="fertilized" value="true" class="form-check-input"> Fertilized</label></div>
+<div class="col-6"><select name="health" class="form-select"><option value="poor">Poor</option><option value="fair">Fair</option><option value="good" selected>Good</option><option value="excellent">Excellent</option></select></div>
+<div class="col-6"><input name="height_cm" class="form-control" placeholder="Height cm" type="number" step="0.01"></div>
+<div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Daily notes..."></textarea></div>
+<div class="col-12"><button class="btn btn-primary w-100">Save today's check</button></div></div></form><hr>
+<div class="list-group list-group-flush">{% for c in checks %}<div class="list-group-item">{{ c.date }} · {{ c.get_health_display }} · {% if c.watered %}💧{% endif %}{% if c.fertilized %}🌱{% endif %} {{ c.notes }}</div>{% empty %}<div class="text-muted">No checks yet.</div>{% endfor %}</div>
+</div></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function postForm(form, url, ok){ form.addEventListener('submit', e=>{ e.preventDefault(); fetch(url,{method:'POST',headers:{'X-CSRFToken':form.querySelector('[name=csrfmiddlewaretoken]').value},body:new FormData(form)}).then(r=>r.json()).then(ok); }); }
+postForm(document.getElementById('logForm'), '{% url "farm:carelog_save_ajax" plant.id %}', ()=>location.reload());
+postForm(document.getElementById('checkForm'), '{% url "farm:dailycheck_save_ajax" plant.id %}', ()=>location.reload());
+document.querySelectorAll('.toggle-form').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();fetch(f.action,{method:'POST',headers:{'X-CSRFToken':f.querySelector('[name=csrfmiddlewaretoken]').value}}).then(()=>location.reload());}));
+document.querySelector('.gen-form').addEventListener('submit',e=>{e.preventDefault();const f=e.target;fetch(f.action,{method:'POST',headers:{'X-CSRFToken':f.querySelector('[name=csrfmiddlewaretoken]').value}}).then(()=>location.reload());});
+document.getElementById('aiForm').addEventListener('submit',e=>{e.preventDefault();const f=e.target;const btn=document.getElementById('aiBtn');const box=document.getElementById('aiResult');btn.disabled=true;btn.textContent='Asking AI…';fetch(f.action,{method:'POST',headers:{'X-CSRFToken':f.querySelector('[name=csrfmiddlewaretoken]').value}}).then(r=>r.json()).then(d=>{box.classList.remove('d-none');if(d.advice){box.textContent=d.advice;setTimeout(()=>location.reload(),8000);}else{box.textContent=d.error||'Something went wrong.';btn.disabled=false;btn.textContent='✨ Ask AI';}});});
+</script>
+{% endblock %}

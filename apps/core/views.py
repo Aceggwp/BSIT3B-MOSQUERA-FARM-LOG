@@ -18,6 +18,22 @@ INVALID_LOGIN_MESSAGE = 'Invalid username or password.'
 LOCKED_MESSAGE = 'Too many failed attempts. Locked for 1 minute.'
 
 
+def _get_client_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def _record_login(request, user):
+    from .models import LoginEvent
+    LoginEvent.objects.create(
+        user=user,
+        ip_address=_get_client_ip(request),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+    )
+
+
 def _reset_lock_state(request):
     request.session['failed_attempts'] = 0
     request.session['lock_time'] = None
@@ -119,6 +135,7 @@ def login_view(request):
     if user is not None:
         _reset_lock_state(request)
         login(request, user)
+        _record_login(request, user)
         return redirect('dashboard')
 
     failed_attempts += 1
@@ -140,7 +157,9 @@ def logout_view(request):
 
 @login_required(login_url='login')
 def home(request):
-    return render(request, 'home.html')
+    from .models import LoginEvent
+    recent_logins = LoginEvent.objects.select_related('user').order_by('-created_at')[:10]
+    return render(request, 'home.html', {'recent_logins': recent_logins})
 
 
 @require_http_methods(['GET', 'POST'])
@@ -171,5 +190,10 @@ def register_view(request):
         email=form_data['email'].strip(),
         password=form_data['password'],
     )
+    # Public sign-up creates staff accounts (never superusers).
+    user.is_staff = True
+    user.is_superuser = False
+    user.save()
     login(request, user)
+    _record_login(request, user)
     return redirect('dashboard')

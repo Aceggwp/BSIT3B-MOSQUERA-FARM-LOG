@@ -9,7 +9,7 @@
   />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
   <title>
-    Sign in - Tabler
+    Register - ProjectV3
 </title>
 <link rel="icon" href="./favicon-dev.ico" type="image/x-icon" />
 <link rel="shortcut icon" href="./favicon-dev.ico" type="image/x-icon" />
@@ -37,14 +37,15 @@ rel="stylesheet"
             <!-- Logo / Brand -->
             <center class="mb-2">
                 <span class="fw-bold fs-1 text-body">
-                  GoldHeist <span class="text-primary">Trader</span>
+                  Project<span class="text-primary">V3</span>
               </span>
           </center>
 
           <div class="card card-md">
             <div class="card-body">
 
-                <h2 class="h2 text-center mb-4">Create your account</h2>
+                <h2 class="h2 text-center mb-4">Create staff account</h2>
+                <p class="text-center text-secondary mb-4">Sign up for staff access — dashboard, info, and farm log.</p>
 
                 {% if errors %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -189,7 +190,6 @@ rel="stylesheet"
 {% include 'theme/settings.html' %}
 
 <script src="{% static 'js/tabler.js' %}" defer></script>
-<script src="{% static 'js/demo.js' %}" defer></script>
 <script>
     document.getElementById('togglePassword').addEventListener('click', function() {
         const input = document.getElementById('password');

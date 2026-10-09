@@ -64,6 +64,7 @@
             <th>Age</th>
             <th>Address</th>
             <th>Email</th>
+            {% if user.is_superuser %}<th>Owner</th>{% endif %}
             <th class="w-1">Actions</th>
           </tr>
         </thead>
@@ -75,6 +76,7 @@
             <td><span class="badge bg-primary-lt text-primary">{{ info.age }}</span></td>
             <td class="text-muted">{{ info.address }}</td>
             <td class="text-muted">{{ info.email|default:"—" }}</td>
+            {% if user.is_superuser %}<td class="text-muted">{{ info.user.username|default:"—" }}</td>{% endif %}
             <td>
               <div class="d-flex gap-1">
                 <button type="button" class="btn btn-ghost-secondary btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="edit" data-id="{{ info.id }}" data-name="{{ info.name }}" data-age="{{ info.age }}" data-address="{{ info.address }}" data-email="{{ info.email }}" title="Edit">
@@ -88,7 +90,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="6">
+            <td colspan="{% if user.is_superuser %}7{% else %}6{% endif %}">
                 <div class="empty py-5">
                     <div class="empty-icon">
                         <i class="fas fa-address-card fa-2x text-muted"></i>

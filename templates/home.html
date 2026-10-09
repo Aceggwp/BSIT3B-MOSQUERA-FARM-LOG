@@ -21,6 +21,31 @@
       Dashboard
     </div>
   </div>
+  <br>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Recent logins</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead>
+          <tr><th>User</th><th>When</th><th>IP address</th></tr>
+        </thead>
+        <tbody>
+          {% for event in recent_logins %}
+          <tr>
+            <td class="fw-semibold">{{ event.user.username }}</td>
+            <td class="text-muted">{{ event.created_at|date:"M j, Y H:i" }}</td>
+            <td class="text-muted">{{ event.ip_address|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted py-4">No logins recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
 {% endblock %}

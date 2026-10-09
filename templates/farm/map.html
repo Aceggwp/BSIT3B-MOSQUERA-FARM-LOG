@@ -1,0 +1,36 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center">
+<div class="col"><div class="page-pretitle">Mosquera Farm Log</div><h2 class="page-title">Garden Layout Map</h2><div class="text-muted">Grid view — each cell is one planting spot. Set a plant's Area + X/Y on the Plants page to place it.</div></div>
+<div class="col-auto"><a href="{% url 'farm:area_list' %}" class="btn btn-outline-primary">Manage areas</a> <a href="{% url 'farm:plant_list' %}" class="btn btn-primary">Plants</a></div></div></div><br>
+<style>
+.plot-grid{display:grid;gap:6px;}
+.plot-cell{min-height:76px;border-radius:.5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:.4rem;font-size:.8rem;}
+.plot-cell.empty{border:1px dashed var(--tblr-border-color);color:var(--tblr-muted);background:var(--tblr-bg-surface-secondary);}
+.plot-cell.full{background:rgba(var(--tblr-primary-rgb),.12);border:1px solid rgba(var(--tblr-primary-rgb),.35);color:inherit;text-decoration:none;}
+.plot-cell.full:hover{background:rgba(var(--tblr-primary-rgb),.2);}
+.plot-cell .coords{font-size:.68rem;color:var(--tblr-muted);}
+</style>
+{% for g in grids %}
+<div class="card mb-3"><div class="card-header"><h3 class="card-title">{{ g.area.name }} <small class="text-muted">{{ g.area.get_kind_display }} · {{ g.area.rows }} rows × {{ g.area.cols }} cols</small></h3></div>
+<div class="card-body">
+<div class="plot-grid" style="grid-template-columns: repeat({{ g.area.cols }}, 1fr);">
+{% for row in g.grid %}{% for cell in row %}
+{% if cell %}
+<div class="plot-cell full">{% for p in cell %}<a href="{% url 'farm:plant_detail' p.id %}" title="{{ p.name }} — harvest {{ p.expected_harvest_date }}">{% if p.id in g.bad_ids %}⚠️ {% elif p.id in g.good_ids %}✨ {% else %}🌱 {% endif %}<strong>{{ p.name }}</strong></a>{% if not forloop.last %}<span class="text-muted">+</span>{% endif %}{% endfor %}</div>
+{% else %}
+<div class="plot-cell empty">· empty ·</div>
+{% endif %}
+{% endfor %}{% endfor %}
+</div>
+{% if g.alerts %}<div class="mt-2">
+{% for alert in g.alerts %}
+{% if alert.kind == 'bad' %}<div class="alert alert-danger py-2 mb-1">⚠️ <strong>{{ alert.a }} × {{ alert.b }}</strong> — {{ alert.reason }}</div>
+{% else %}<div class="alert alert-success py-2 mb-1">✨ <strong>{{ alert.a }} × {{ alert.b }}</strong> — {{ alert.reason }}</div>{% endif %}
+{% endfor %}
+</div>{% endif %}
+{% if g.overflow %}<div class="alert alert-warning mt-2 mb-0">Off-grid (X/Y outside {{ g.area.cols }}×{{ g.area.rows }}): {% for p in g.overflow %}<a href="{% url 'farm:plant_detail' p.id %}">{{ p.name }} ({{ p.pos_x }},{{ p.pos_y }})</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+</div></div>
+{% empty %}<div class="card"><div class="card-body text-muted">No garden areas yet. <a href="{% url 'farm:area_list' %}">Create one</a>.</div></div>{% endfor %}
+{% if unplaced %}<div class="card"><div class="card-header"><h3 class="card-title">Unplaced plants</h3></div><div class="list-group list-group-flush">{% for p in unplaced %}<a class="list-group-item" href="{% url 'farm:plant_detail' p.id %}">{{ p.name }} — assign an area</a>{% endfor %}</div></div>{% endif %}
+{% endblock %}

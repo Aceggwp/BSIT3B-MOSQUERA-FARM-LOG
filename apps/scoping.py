@@ -2,6 +2,8 @@ from django.shortcuts import get_object_or_404
 from apps.info.models import Info
 
 def scoped_infos(user):
+    if user.is_superuser:
+        return Info.objects.all()
     return Info.objects.filter(user=user)
 
 def scoped_info(user, pk):

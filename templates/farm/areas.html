@@ -1,0 +1,21 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center">
+<div class="col"><div class="page-pretitle">Mosquera Farm Log</div><h2 class="page-title">Garden Areas</h2></div>
+<div class="col-auto"><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#areaModal">+ Area</button></div></div></div><br>
+<div class="row row-deck row-cards">{% for a in areas %}<div class="col-md-4"><div class="card"><div class="card-body"><h3>{{ a.name }}</h3><div class="text-muted">{{ a.get_kind_display }} · {{ a.rows }}×{{ a.cols }} · {{ a.plants.count }} plants</div><p class="mt-2">{{ a.description }}</p><a href="{% url 'farm:map' %}" class="btn btn-outline-primary btn-sm">View on map</a></div></div></div>{% empty %}<div class="col-12 text-muted">No areas yet. Add raised beds, yard zones, or indoor pots.</div>{% endfor %}</div>
+<div class="modal modal-blur fade" id="areaModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title">Add Area</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<form id="areaForm">{% csrf_token %}<div class="modal-body"><div class="row g-2">
+<div class="col-12"><label class="form-label">Name</label><input name="name" class="form-control" required></div>
+<div class="col-12"><label class="form-label">Kind</label><select name="kind" class="form-select"><option value="raised_bed">Raised Bed</option><option value="yard">Yard</option><option value="indoor_pot">Indoor Pot</option><option value="greenhouse">Greenhouse</option><option value="other">Other</option></select></div>
+<div class="col-6"><label class="form-label">Rows</label><input type="number" name="rows" class="form-control" value="4" min="1"></div>
+<div class="col-6"><label class="form-label">Cols</label><input type="number" name="cols" class="form-control" value="4" min="1"></div>
+<div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+</div></div><div class="modal-footer"><button class="btn btn-primary w-100">Save</button></div></form></div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('areaForm').addEventListener('submit',e=>{e.preventDefault();const f=e.target;fetch('{% url "farm:area_save_ajax" %}',{method:'POST',headers:{'X-CSRFToken':f.querySelector('[name=csrfmiddlewaretoken]').value},body:new FormData(f)}).then(r=>r.json()).then(()=>location.reload());});
+</script>
+{% endblock %}

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.users',
     'apps.info',
+    'apps.farm',
 ]
 
 MIDDLEWARE = [
@@ -78,14 +80,22 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'bsitcrud',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# MySQL (production / XAMPP) — uncomment when mysqlclient is installed:
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'bsitcrud',
+#         'USER': 'root',
+#         'PASSWORD': '',
+#         'HOST': 'localhost',
+#         'PORT': '3306',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -132,3 +142,25 @@ LOGOUT_REDIRECT_URL = '/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Mosquera Farm Log — weather-adaptive reminders.
+# Default provider Open-Meteo (free, no API key). Optional OpenWeatherMap
+# via FARM_WEATHER_PROVIDER=openweathermap + OPENWEATHER_API_KEY env var.
+FARM_WEATHER_PROVIDER = os.environ.get('FARM_WEATHER_PROVIDER', 'open-meteo')
+FARM_WEATHER_CITY = os.environ.get('FARM_WEATHER_CITY', 'Manila, PH')
+FARM_WEATHER_LAT = float(os.environ.get('FARM_WEATHER_LAT', '14.5995'))
+FARM_WEATHER_LON = float(os.environ.get('FARM_WEATHER_LON', '120.9842'))
+OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY', '')
+# Skip/postpone watering when this much rain (mm) is forecast in 24h.
+FARM_RAIN_SKIP_MM = float(os.environ.get('FARM_RAIN_SKIP_MM', '5.0'))
+FARM_WEATHER_CACHE_SECONDS = int(os.environ.get('FARM_WEATHER_CACHE_SECONDS', '1800'))
+
+# Mosquera Farm Log — Gemini AI advice (https://aistudio.google.com, free tier).
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-flash-latest')
+
+# Mosquera Farm Log — OpenRouter AI backend (https://openrouter.ai/keys).
+# AI_PROVIDER selects which backend the "Ask AI" button uses.
+AI_PROVIDER = os.environ.get('AI_PROVIDER', 'gemini')
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+OPENROUTER_MODEL = os.environ.get('OPENROUTER_MODEL', 'google/gemma-4-31b-it:free')

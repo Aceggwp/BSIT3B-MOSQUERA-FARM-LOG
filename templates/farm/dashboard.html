@@ -1,0 +1,119 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none">
+  <div class="row align-items-center">
+    <div class="col">
+      <div class="page-pretitle">Mosquera Farm Log</div>
+      <h2 class="page-title">Farm Dashboard</h2>
+    </div>
+    <div class="col-auto">
+      <a href="{% url 'farm:plant_list' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Plant</a>
+    </div>
+  </div>
+</div>
+<br>
+<div class="row row-deck row-cards">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body"><div class="subheader">Plants</div><div class="h1">{{ plant_count }}</div></div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body"><div class="subheader">Due reminders</div><div class="h1 text-danger">{{ due_count }}</div></div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body"><div class="subheader">Ready to harvest</div><div class="h1 text-success">{{ ready|length }}</div></div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body"><a href="{% url 'farm:map' %}" class="btn btn-outline-primary w-100">Garden Map</a></div></div>
+  </div>
+</div>
+<br>
+{% if weather.state == 'ok' and weather.skip_watering %}
+<div class="alert alert-info d-flex align-items-center gap-2" role="alert">
+  <i class="fas fa-cloud-rain"></i>
+  <div>Heavy rain forecast for {{ weather.city }} ({{ weather.rain_mm }} mm in 24h) — watering alerts are paused.
+    <form method="post" action="{% url 'farm:weather_adjust' %}" class="d-inline ms-2">{% csrf_token %}<button class="btn btn-sm btn-info">Pause watering reminders</button></form>
+  </div>
+</div>
+{% elif weather.state == 'ok' %}
+<div class="alert alert-success d-flex align-items-center gap-2" role="alert">
+  <i class="fas fa-sun"></i>
+  <div>No heavy rain forecast for {{ weather.city }} ({{ weather.rain_mm }} mm in 24h) — water as normal.</div>
+</div>
+{% elif weather.state == 'unconfigured' %}
+<div class="alert alert-secondary d-flex align-items-center gap-2" role="alert">
+  <i class="fas fa-cloud"></i>
+  <div>Weather forecast unavailable — watering reminders work normally. Check your connection and reload.</div>
+</div>
+{% endif %}
+<div class="row row-deck row-cards">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">⚡ Quick log <small class="text-muted">— daily round in under 30 seconds</small></h3></div>
+      <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+        <form method="post" action="{% url 'farm:quick_water_all' %}" class="quick-form m-0">{% csrf_token %}<button class="btn btn-primary">💧 Watered all ({{ plant_count }})</button></form>
+        <form method="post" action="{% url 'farm:quick_fertilize_all' %}" class="quick-form m-0">{% csrf_token %}<button class="btn btn-success">🌱 Fertilized all</button></form>
+        {% for a in areas %}
+        <form method="post" action="{% url 'farm:quick_water_all' %}" class="quick-form m-0">{% csrf_token %}<input type="hidden" name="area" value="{{ a.id }}"><button class="btn btn-outline-primary btn-sm">💧 Watered all {{ a.name }}</button></form>
+        {% endfor %}
+        <form method="post" action="{% url 'farm:quick_pest' %}" class="quick-form m-0 d-flex gap-1">{% csrf_token %}
+          <select name="plant" class="form-select form-select-sm" style="max-width:160px">{% for p in all_plants %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+          <button class="btn btn-danger btn-sm">🐛 Pest spotted</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<br>
+<div class="row row-deck row-cards">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Due now (water / fertilize / harvest)</h3></div>
+      <div class="list-group list-group-flush">
+        {% for r in due %}
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div><strong>{{ r.plant.name }}</strong> — {{ r.message }}<br><small class="text-muted">{{ r.due_date }}{% if r.due_date < today %} · overdue{% endif %}{% if r.weather_paused %} · paused for rain{% endif %}</small></div>
+          <form method="post" action="{% url 'farm:reminder_toggle_ajax' r.id %}" class="m-0 reminder-toggle-form">{% csrf_token %}<button class="btn btn-sm btn-success">Done</button></form>
+        </div>
+        {% empty %}<div class="list-group-item text-muted">No due reminders. Plants are happy.</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Ready to harvest</h3></div>
+      <div class="list-group list-group-flush">
+        {% for p in ready %}
+        <a href="{% url 'farm:plant_detail' p.id %}" class="list-group-item"><strong>{{ p.name }}</strong> {{ p.variety }} — expected {{ p.expected_harvest_date }}</a>
+        {% empty %}<div class="list-group-item text-muted">Nothing ready yet.</div>{% endfor %}
+      </div>
+    </div>
+    <br>
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Upcoming</h3></div>
+      <div class="list-group list-group-flush">
+        {% for r in upcoming %}
+        <div class="list-group-item"><strong>{{ r.plant.name }}</strong> — {{ r.message }}<br><small class="text-muted">{{ r.due_date }}</small></div>
+        {% empty %}<div class="list-group-item text-muted">No upcoming reminders.</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.reminder-toggle-form').forEach(f => {
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    fetch(f.action, {method: 'POST', headers: {'X-CSRFToken': f.querySelector('[name=csrfmiddlewaretoken]').value}})
+      .then(r => r.json()).then(() => window.location.reload());
+  });
+});
+document.querySelectorAll('.quick-form').forEach(f => {
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    fetch(f.action, {method: 'POST', headers: {'X-CSRFToken': f.querySelector('[name=csrfmiddlewaretoken]').value, 'X-Requested-With': 'XMLHttpRequest'}, body: new FormData(f)})
+      .then(() => window.location.reload());
+  });
+});
+</script>
+{% endblock %}
