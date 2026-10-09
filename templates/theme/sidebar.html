@@ -1,11 +1,14 @@
 <aside class="navbar navbar-vertical navbar-expand-lg navbar-dark dh-sidebar">
   <div class="container-fluid">
     <div class="navbar-brand navbar-brand-autodark dh-brand">
-      <a href="." class="d-flex align-items-center gap-2 text-decoration-none">
-        <span class="dh-brand-mark">
-          <i class="fa-solid fa-shield-halved"></i>
+      <a href="." class="d-flex align-items-center gap-2 text-decoration-none min-w-0">
+        <span class="dh-brand-mark dh-brand-leaf">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 2C7.5 7 4.5 11.5 4.5 15.5a7.5 7.5 0 0 0 7.5 7.5c4 0 7.5-3.5 7.5-7.5C19.5 11 16.5 6.5 12 2Z" fill="#4ade80"/>
+            <path d="M12 5.5V20M12 10l-3.5-2M12 13.5 8 12M12 13.5l4-1.5M12 10l3.5-2" stroke="#166534" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
         </span>
-        <span class="lh-1">
+        <span class="lh-1 min-w-0 flex-grow-1">
           <span class="dh-brand-name">MOSQUERA <span class="text-warning">Farm Logs</span></span>
           <span class="dh-brand-sub">Farm Management System</span>
         </span>
@@ -62,12 +65,14 @@
         </li>
 
         <li class="nav-item">
-          <span class="dh-nav-section">
+          <button class="dh-nav-section dh-nav-toggle w-100 text-start" id="farmMenuToggle" type="button" aria-expanded="{% if request.resolver_match.namespace == 'farm' %}true{% else %}false{% endif %}" aria-controls="farmMenu">
             Mosquera Farm Log
-          </span>
+            <i class="fas fa-chevron-down dh-nav-caret"></i>
+          </button>
         </li>
+        <div id="farmMenu" {% if request.resolver_match.namespace != 'farm' %}class="d-none"{% endif %}>
         <li class="nav-item mb-1">
-          <a class="nav-link {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'farm:dashboard' %}">
+          <a class="nav-link nav-link-farm {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'farm:dashboard' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="fas fa-seedling"></i>
             </span>
@@ -75,23 +80,25 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'plant_list' or request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'plant_detail' %}active{% endif %}" href="{% url 'farm:plant_list' %}">
+          <a class="nav-link nav-link-farm {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'plant_list' or request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'plant_detail' %}active{% endif %}" href="{% url 'farm:plant_list' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="fas fa-leaf"></i>
             </span>
             <span class="nav-link-title">Plants</span>
+            {% if nav_plant_count %}<span class="badge bg-green-lt text-green ms-auto count-badge">{{ nav_plant_count }}</span>{% endif %}
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'reminder_list' %}active{% endif %}" href="{% url 'farm:reminder_list' %}">
+          <a class="nav-link nav-link-farm {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'reminder_list' %}active{% endif %}" href="{% url 'farm:reminder_list' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="fas fa-bell"></i>
             </span>
             <span class="nav-link-title">Reminders</span>
+            {% if nav_due_count %}<span class="badge bg-danger-lt text-danger ms-auto count-badge">{{ nav_due_count }}</span>{% endif %}
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'map' %}active{% endif %}" href="{% url 'farm:map' %}">
+          <a class="nav-link nav-link-farm {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'map' %}active{% endif %}" href="{% url 'farm:map' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="fas fa-map"></i>
             </span>
@@ -99,13 +106,15 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'area_list' %}active{% endif %}" href="{% url 'farm:area_list' %}">
+          <a class="nav-link nav-link-farm {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'area_list' %}active{% endif %}" href="{% url 'farm:area_list' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="fas fa-border-all"></i>
             </span>
             <span class="nav-link-title">Garden Areas</span>
           </a>
         </li>
+        </li>
+        </div>
 
         {% if user.is_authenticated %}
         <li class="nav-item d-lg-none">
@@ -141,3 +150,13 @@
     </div>
   </div>
 </aside>
+<script>
+(function(){
+  var toggle=document.getElementById('farmMenuToggle'), menu=document.getElementById('farmMenu');
+  if(!toggle||!menu) return;
+  toggle.addEventListener('click',function(){
+    var open=menu.classList.toggle('d-none')===false;
+    toggle.setAttribute('aria-expanded',open?'true':'false');
+  });
+})();
+</script>

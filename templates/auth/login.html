@@ -16,6 +16,7 @@
   <link href="{% static 'css/tabler-vendors.css' %}" rel="stylesheet" />
   <link href="{% static 'css/tabler-marketing.css' %}" rel="stylesheet" />
   <link href="{% static 'css/tabler-themes.css' %}" rel="stylesheet" />
+  <link href="{% static 'css/app-theme.css' %}" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 
@@ -28,7 +29,13 @@
       <div class="card-body">
 
         <center class="mt-n4">
-        <i class='far fa-calendar' style='font-size:40px'></i>
+        <span class="dh-brand-mark dh-brand-leaf" style="width:3rem;height:3rem;border-radius:.9rem;">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="width:1.7rem;height:1.7rem;">
+            <path d="M12 2C7.5 7 4.5 11.5 4.5 15.5a7.5 7.5 0 0 0 7.5 7.5c4 0 7.5-3.5 7.5-7.5C19.5 11 16.5 6.5 12 2Z" fill="#4ade80"/>
+            <path d="M12 5.5V20M12 10l-3.5-2M12 13.5 8 12M12 13.5l4-1.5M12 10l3.5-2" stroke="#166534" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <div class="fw-bold mt-2">MOSQUERA <span class="text-primary">Farm Logs</span></div>
         </center>
         <h2 class="h3 text-center mb-4">Sign in to start your session</h2>
 

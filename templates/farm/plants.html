@@ -104,6 +104,9 @@
     fetch('{% url "farm:plant_save_ajax" %}',{method:'POST',headers:{'X-CSRFToken':form.querySelector('[name=csrfmiddlewaretoken]').value},body:new FormData(form)})
       .then(r=>r.json()).then(d=>{ if(d.error){err.textContent=d.error;err.classList.remove('d-none');return;} window.location.reload(); });
   });
+  if(new URLSearchParams(window.location.search).get('add')==='1'){
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+  }
 })();
 </script>
 {% endblock %}

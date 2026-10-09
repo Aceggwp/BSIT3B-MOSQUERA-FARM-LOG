@@ -162,6 +162,26 @@ class FarmQuickLogTests(TestCase):
     def test_dashboard_shows_quick_log(self):
         self.assertContains(self.client.get(reverse("farm:dashboard")), "Quick log")
 
+    def test_sidebar_badges_and_collapse(self):
+        Reminder.objects.create(user=self.user, plant=self.p1,
+                                kind="water", message="Water", due_date=date.today())
+        response = self.client.get(reverse("farm:dashboard"))
+        self.assertContains(response, "farmMenu")
+        self.assertContains(response, "count-badge")
+
+    def test_sidebar_farm_collapsed_off_farm(self):
+        response = self.client.get(reverse("info:info_list"))
+        self.assertContains(response, 'aria-expanded="false"')
+
+    def test_login_history_link_admin_only(self):
+        boss = get_user_model().objects.create_superuser(
+            username="navboss", password="secret1234", email="n@example.com")
+        self.client.force_login(boss)
+        self.assertNotContains(self.client.get(reverse("dashboard")), "Login History")
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("dashboard"))
+        self.assertNotContains(response, "Login History")
+
     def test_area_create(self):
         response = self.client.post(reverse("farm:area_save_ajax"), {
             "name": "Bed A", "kind": "raised_bed", "rows": 4, "cols": 4,
