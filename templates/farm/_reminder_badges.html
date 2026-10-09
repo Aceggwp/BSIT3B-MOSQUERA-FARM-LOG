@@ -1,0 +1,10 @@
+{# Shared automation/status badges for a reminder `r`. Shows whether work is unfinished. #}
+{% if r.kind == 'water' %}<span class="badge bg-primary-lt text-primary">💧 Water</span>
+{% elif r.kind == 'fertilize' %}<span class="badge bg-success-lt text-success">🌱 Fertilize</span>
+{% elif r.kind == 'harvest' %}<span class="badge bg-warning-lt text-warning">🌾 Harvest</span>
+{% else %}<span class="badge bg-secondary-lt text-secondary">✏️ Custom</span>{% endif %}
+{% if r.is_done %}<span class="badge bg-success-lt text-success">Done</span>
+{% elif r.days_overdue %}<span class="badge bg-danger-lt text-danger badge-pulse">{{ r.days_overdue }}d overdue</span>
+{% elif r.is_due_today %}<span class="badge bg-warning-lt text-warning">Due today</span>
+{% else %}<span class="badge bg-secondary-lt text-secondary">In {{ r.days_until_due }}d</span>{% endif %}
+{% if r.weather_paused %}<span class="badge bg-info-lt text-info">Paused for rain</span>{% endif %}

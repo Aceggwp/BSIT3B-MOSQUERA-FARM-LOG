@@ -76,3 +76,21 @@ def analyze(plants: list) -> list:
                 })
     alerts.sort(key=lambda a: (0 if a["kind"] == "bad" else 1, a["a"], a["b"]))
     return alerts
+
+
+def find_spot(area, plants: list, name: str):
+    """Pick an empty (x, y) cell: first one with no bad neighbor, else first empty."""
+    taken = {(p.pos_x, p.pos_y) for p in plants
+             if 0 <= p.pos_x < area.cols and 0 <= p.pos_y < area.rows}
+    fallback = None
+    for y in range(area.rows):
+        for x in range(area.cols):
+            if (x, y) in taken:
+                continue
+            if fallback is None:
+                fallback = (x, y)
+            neighbors = [p for p in plants
+                         if max(abs(p.pos_x - x), abs(p.pos_y - y)) <= 1]
+            if all((pairing(name, p.name) or ("good",))[0] != "bad" for p in neighbors):
+                return (x, y)
+    return fallback

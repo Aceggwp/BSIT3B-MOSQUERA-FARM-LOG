@@ -169,6 +169,18 @@ class Reminder(models.Model):
     def is_due_today(self):
         return not self.is_done and self.due_date == date.today()
 
+    @property
+    def days_overdue(self):
+        if self.is_done or self.due_date >= date.today():
+            return 0
+        return (date.today() - self.due_date).days
+
+    @property
+    def days_until_due(self):
+        if self.is_done:
+            return 0
+        return max(0, (self.due_date - date.today()).days)
+
     @classmethod
     def build_defaults_for_plant(cls, plant: Plant, user=None):
         """Generate tailored water / fertilize / harvest reminders for a plant."""

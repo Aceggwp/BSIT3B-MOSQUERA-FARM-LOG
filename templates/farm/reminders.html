@@ -6,7 +6,7 @@
 <button class="btn btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#remModal">+ Reminder</button></div></div></div><br>
 <div class="card"><div class="list-group list-group-flush">
 {% for r in reminders %}<div class="list-group-item d-flex justify-content-between align-items-center">
-<div><strong>{{ r.plant.name }}</strong> — {{ r.message }}<br><small class="text-muted">{{ r.get_kind_display }} · due {{ r.due_date }}{% if r.is_done %} · done{% elif r.due_date < today %} · overdue{% endif %}{% if r.weather_paused %} · paused for rain{% endif %}</small></div>
+<div><strong>{{ r.plant.name }}</strong> — {{ r.message }}<br><small class="text-muted">{{ r.get_kind_display }} · due {{ r.due_date }}{% if r.is_done %} · done{% elif r.due_date < today %} · overdue{% endif %}{% if r.weather_paused %} · paused for rain{% endif %}</small><br>{% include "farm/_reminder_badges.html" with r=r %}</div>
 <div class="d-flex gap-1"><form method="post" action="{% url 'farm:reminder_toggle_ajax' r.id %}" class="toggle-form m-0">{% csrf_token %}<button class="btn btn-sm {% if r.is_done %}btn-ghost-secondary{% else %}btn-success{% endif %}">{% if r.is_done %}Undo{% else %}Done{% endif %}</button></form></div>
 </div>{% empty %}<div class="list-group-item text-muted">No reminders.</div>{% endfor %}
 </div></div>

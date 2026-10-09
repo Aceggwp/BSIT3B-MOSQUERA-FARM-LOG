@@ -10,7 +10,7 @@
 <div id="aiResult" class="alert alert-purple-lt d-none mt-2" role="alert"></div><br>
 <div class="row row-deck row-cards">
 <div class="col-lg-4"><div class="card"><div class="card-header"><h3 class="card-title">Custom Reminders</h3></div>
-<div class="list-group list-group-flush">{% for r in reminders %}<div class="list-group-item d-flex justify-content-between"><div>{% if r.is_done %}<s>{{ r.message }}</s>{% else %}{{ r.message }}{% endif %}<br><small class="text-muted">{{ r.get_kind_display }} · {{ r.due_date }}{% if r.weather_paused %} · paused for rain{% endif %}</small></div>
+<div class="list-group list-group-flush">{% for r in reminders %}<div class="list-group-item d-flex justify-content-between"><div>{% if r.is_done %}<s>{{ r.message }}</s>{% else %}{{ r.message }}{% endif %}<br><small class="text-muted">{{ r.get_kind_display }} · {{ r.due_date }}{% if r.weather_paused %} · paused for rain{% endif %}</small><br>{% include "farm/_reminder_badges.html" with r=r %}</div>
 <form method="post" action="{% url 'farm:reminder_toggle_ajax' r.id %}" class="toggle-form m-0">{% csrf_token %}<button class="btn btn-sm {% if r.is_done %}btn-ghost-secondary{% else %}btn-success{% endif %}">{% if r.is_done %}Undo{% else %}Done{% endif %}</button></form></div>
 {% empty %}<div class="list-group-item text-muted">No reminders.</div>{% endfor %}</div></div></div>
 <div class="col-lg-4"><div class="card"><div class="card-header"><h3 class="card-title">Care History</h3></div><div class="card-body">

@@ -85,7 +85,7 @@
               <i class="fas fa-leaf"></i>
             </span>
             <span class="nav-link-title">Plants</span>
-            {% if nav_plant_count %}<span class="badge bg-green-lt text-green ms-auto count-badge">{{ nav_plant_count }}</span>{% endif %}
+            <span class="badge bg-green-lt text-green ms-auto count-badge {% if not nav_plant_count %}d-none{% endif %}" id="nav-badge-plants">{{ nav_plant_count|default:"" }}</span>
           </a>
         </li>
         <li class="nav-item">
@@ -94,7 +94,15 @@
               <i class="fas fa-bell"></i>
             </span>
             <span class="nav-link-title">Reminders</span>
-            {% if nav_due_count %}<span class="badge bg-danger-lt text-danger ms-auto count-badge">{{ nav_due_count }}</span>{% endif %}
+            <span class="badge bg-danger-lt text-danger ms-auto count-badge {% if not nav_due_count %}d-none{% endif %}" id="nav-badge-due">{{ nav_due_count|default:"" }}</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link nav-link-farm {% if request.resolver_match.namespace == 'farm' and request.resolver_match.url_name == 'carelog_list' %}active{% endif %}" href="{% url 'farm:carelog_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-book"></i>
+            </span>
+            <span class="nav-link-title">Care Logs</span>
           </a>
         </li>
         <li class="nav-item">

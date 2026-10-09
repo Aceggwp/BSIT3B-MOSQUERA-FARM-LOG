@@ -36,6 +36,23 @@
         <div class="page-wrapper">
             <div class="page-body">
                 <div class="container-xl">
+                    {% if messages %}
+                    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;" aria-live="polite" aria-atomic="true">
+                        {% for message in messages %}
+                        <div class="toast text-bg-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% elif message.tags == 'success' %}success{% else %}info{% endif %}" role="alert" aria-atomic="true" data-bs-delay="5000">
+                            <div class="d-flex">
+                                <div class="toast-body">{{ message }}</div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <script>
+                      document.querySelectorAll('.toast-container .toast').forEach(function (el) {
+                        if (window.bootstrap && bootstrap.Toast) bootstrap.Toast.getOrCreateInstance(el, {delay: 5000}).show();
+                      });
+                    </script>
+                    {% endif %}
                     {% block content %}
                     {% endblock %}
                 </div>
@@ -55,5 +72,29 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/tabler.js' %}"></script>
     {% block extra_js %}{% endblock %}
+    {% if request.user.is_authenticated %}
+    <script>
+    (function(){
+      function setBadge(id, n){
+        var el=document.getElementById(id);
+        if(!el) return;
+        el.textContent=n>0?n:'';
+        el.classList.toggle('d-none',!(n>0));
+      }
+      function tick(){
+        if(document.hidden) return;
+        fetch('{% url "farm:stats_ajax" %}',{headers:{'X-Requested-With':'XMLHttpRequest'}})
+          .then(function(r){return r.json();}).then(function(d){
+            var p=document.getElementById('stat-plants'); if(p) p.textContent=d.plant_count;
+            var u=document.getElementById('stat-due'); if(u) u.textContent=d.due_count;
+            var rdy=document.getElementById('stat-ready'); if(rdy) rdy.textContent=d.ready_count;
+            setBadge('nav-badge-plants',d.plant_count);
+            setBadge('nav-badge-due',d.due_count);
+          }).catch(function(){});
+      }
+      setInterval(tick, 60000);
+    })();
+    </script>
+    {% endif %}
   </body>
 </html>

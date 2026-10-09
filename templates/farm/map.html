@@ -1,8 +1,9 @@
 {% extends "theme/base.html" %}
 {% block content %}
 <div class="page-header d-print-none"><div class="row align-items-center">
-<div class="col"><div class="page-pretitle">Mosquera Farm Log</div><h2 class="page-title">Garden Layout Map</h2><div class="text-muted">Grid view — each cell is one planting spot. Set a plant's Area + X/Y on the Plants page to place it.</div></div>
-<div class="col-auto"><a href="{% url 'farm:area_list' %}" class="btn btn-outline-primary">Manage areas</a> <a href="{% url 'farm:plant_list' %}" class="btn btn-primary">Plants</a></div></div></div><br>
+<div class="col"><div class="page-pretitle">Mosquera Farm Log</div><h2 class="page-title">Garden Layout Map</h2><div class="text-muted">Grid view — tap a plant to pick it up, then tap any cell to move it there. <span id="moveHint" class="fw-bold text-primary d-none">Moving… tap a destination cell (Esc to cancel).</span></div></div>
+<div class="col-auto"><a href="{% url 'farm:area_list' %}" class="btn btn-outline-primary">Manage areas</a> <a href="{% url 'farm:plant_list' %}" class="btn btn-primary">Plants</a>
+<form method="post" action="{% url 'farm:map_auto_arrange' %}" class="d-inline arrange-form">{% csrf_token %}<button class="btn btn-success" title="Place unplaced plants into empty cells, avoiding bad companions">✨ Auto-arrange</button></form></div></div></div><br>
 <style>
 .plot-grid{display:grid;gap:6px;}
 .plot-cell{min-height:76px;border-radius:.5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:.4rem;font-size:.8rem;}
@@ -10,6 +11,9 @@
 .plot-cell.full{background:rgba(var(--tblr-primary-rgb),.12);border:1px solid rgba(var(--tblr-primary-rgb),.35);color:inherit;text-decoration:none;}
 .plot-cell.full:hover{background:rgba(var(--tblr-primary-rgb),.2);}
 .plot-cell .coords{font-size:.68rem;color:var(--tblr-muted);}
+.plot-cell.pickup{outline:3px solid var(--tblr-primary);outline-offset:-3px;cursor:grab;}
+.plot-cell.drop-hover{outline:3px dashed var(--tblr-primary);outline-offset:-3px;}
+.move-src{border-radius:.5rem;box-shadow:0 0 0 3px var(--tblr-primary);}
 </style>
 {% for g in grids %}
 <div class="card mb-3"><div class="card-header"><h3 class="card-title">{{ g.area.name }} <small class="text-muted">{{ g.area.get_kind_display }} · {{ g.area.rows }} rows × {{ g.area.cols }} cols</small></h3></div>
@@ -17,9 +21,9 @@
 <div class="plot-grid" style="grid-template-columns: repeat({{ g.area.cols }}, 1fr);">
 {% for row in g.grid %}{% for cell in row %}
 {% if cell %}
-<div class="plot-cell full">{% for p in cell %}<a href="{% url 'farm:plant_detail' p.id %}" title="{{ p.name }} — harvest {{ p.expected_harvest_date }}">{% if p.id in g.bad_ids %}⚠️ {% elif p.id in g.good_ids %}✨ {% else %}🌱 {% endif %}<strong>{{ p.name }}</strong></a>{% if not forloop.last %}<span class="text-muted">+</span>{% endif %}{% endfor %}</div>
+<div class="plot-cell full move-drop" data-area="{{ g.area.id }}" data-x="{{ forloop.counter0 }}" data-y="{{ forloop.parentloop.counter0 }}">{% for p in cell %}<a href="{% url 'farm:plant_detail' p.id %}" draggable="true" class="move-pick" data-plant="{{ p.id }}" data-name="{{ p.name }}" title="{{ p.name }} — harvest {{ p.expected_harvest_date }} (tap to move, tap again to open)">{% if p.id in g.bad_ids %}⚠️ {% elif p.id in g.good_ids %}✨ {% else %}🌱 {% endif %}<strong>{{ p.name }}</strong></a>{% if not forloop.last %}<span class="text-muted">+</span>{% endif %}{% endfor %}</div>
 {% else %}
-<div class="plot-cell empty">· empty ·</div>
+<div class="plot-cell empty move-drop" data-area="{{ g.area.id }}" data-x="{{ forloop.counter0 }}" data-y="{{ forloop.parentloop.counter0 }}">· empty ·</div>
 {% endif %}
 {% endfor %}{% endfor %}
 </div>
@@ -33,4 +37,58 @@
 </div></div>
 {% empty %}<div class="card"><div class="card-body text-muted">No garden areas yet. <a href="{% url 'farm:area_list' %}">Create one</a>.</div></div>{% endfor %}
 {% if unplaced %}<div class="card"><div class="card-header"><h3 class="card-title">Unplaced plants</h3></div><div class="list-group list-group-flush">{% for p in unplaced %}<a class="list-group-item" href="{% url 'farm:plant_detail' p.id %}">{{ p.name }} — assign an area</a>{% endfor %}</div></div>{% endif %}
+<script>
+document.querySelectorAll('.arrange-form').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();fetch(f.action,{method:'POST',headers:{'X-CSRFToken':f.querySelector('[name=csrfmiddlewaretoken]').value,'X-Requested-With':'XMLHttpRequest'},body:new FormData(f)}).then(()=>location.reload());}));
+(function(){
+  const hint=document.getElementById('moveHint');
+  const csrf=document.querySelector('.arrange-form [name=csrfmiddlewaretoken]');
+  let picked=null;
+  function clearPick(){
+    picked=null;
+    hint.classList.add('d-none');
+    document.querySelectorAll('.move-src').forEach(el=>el.classList.remove('move-src'));
+  }
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')clearPick();});
+  function doMove(plantId, area, x, y){
+    const fd=new FormData();
+    fd.append('area',area); fd.append('pos_x',x); fd.append('pos_y',y);
+    fetch('/farm/ajax/plants/'+plantId+'/move/',{method:'POST',headers:{'X-CSRFToken':csrf.value},body:fd})
+      .then(r=>r.json()).then(d=>{if(d.status==='moved'){location.reload();}else{alert(d.error||'Move failed.');clearPick();}});
+  }
+  document.querySelectorAll('.move-pick').forEach(a=>a.addEventListener('click',e=>{    const id=a.getAttribute('data-plant');
+    if(picked&&picked===id){return;} // second tap: follow link to detail
+    e.preventDefault();
+    if(picked){
+      const cell=a.closest('.move-drop');
+      doMove(picked,cell.getAttribute('data-area'),cell.getAttribute('data-x'),cell.getAttribute('data-y'));
+      return;
+    }
+    clearPick();
+    picked=id;
+    a.classList.add('move-src');
+    hint.classList.remove('d-none');
+    hint.textContent='Moving '+a.getAttribute('data-name')+'… tap a destination cell (tap it again to open, Esc to cancel).';
+  }));
+  document.querySelectorAll('.move-drop').forEach(cell=>cell.addEventListener('click',e=>{
+    if(!picked) return;
+    if(e.target.closest('.move-pick')) return; // handled by pick logic
+    doMove(picked,cell.getAttribute('data-area'),cell.getAttribute('data-x'),cell.getAttribute('data-y'));
+  }));
+  // Hold-click-and-drag (desktop): drag a plant onto any cell.
+  document.querySelectorAll('.move-pick').forEach(a=>a.addEventListener('dragstart',e=>{
+    e.dataTransfer.setData('text/plain',a.getAttribute('data-plant'));
+    e.dataTransfer.effectAllowed='move';
+  }));
+  document.querySelectorAll('.move-drop').forEach(cell=>{
+    cell.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';cell.classList.add('drop-hover');});
+    cell.addEventListener('dragleave',()=>cell.classList.remove('drop-hover'));
+    cell.addEventListener('drop',e=>{
+      e.preventDefault();
+      cell.classList.remove('drop-hover');
+      const id=e.dataTransfer.getData('text/plain');
+      if(id) doMove(id,cell.getAttribute('data-area'),cell.getAttribute('data-x'),cell.getAttribute('data-y'));
+    });
+  });
+})();
+</script>
 {% endblock %}

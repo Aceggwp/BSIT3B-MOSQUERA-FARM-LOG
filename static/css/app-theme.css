@@ -354,6 +354,7 @@ html {
 }
 
 .dh-sidebar .navbar-nav .nav-link {
+  display: flex;
   margin: 0 0.75rem 0.15rem;
   padding: 0.6rem 0.85rem;
   border-radius: 0.625rem;
@@ -728,5 +729,68 @@ html {
 
   .dh-hero-title {
     font-size: 1.3rem;
+  }
+}
+
+/* Motion set: cards, map, badges, toasts, modals, buttons, photos. */
+@media (prefers-reduced-motion: no-preference) {
+  .row-cards .card {
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .row-cards .card:hover {
+    transform: translateY(-2px);
+  }
+
+  .move-src {
+    animation: carry-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes carry-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px var(--tblr-primary); }
+    50% { box-shadow: 0 0 0 6px rgba(var(--tblr-primary-rgb), 0.45); }
+  }
+
+  .plot-cell.drop-hover {
+    transition: outline-color 0.12s ease, background-color 0.12s ease;
+  }
+
+  .badge-pulse {
+    animation: badge-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes badge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  .toast-container .toast {
+    animation: toast-in 0.25s ease;
+  }
+
+  @keyframes toast-in {
+    from { transform: translateX(24px); opacity: 0; }
+  }
+
+  .modal.fade .modal-dialog {
+    transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+    transform: scale(0.97);
+  }
+
+  .modal.show .modal-dialog {
+    transform: none;
+  }
+
+  .quick-form .btn:active,
+  .arrange-form .btn:active {
+    transform: scale(0.96);
+  }
+
+  .img-thumbnail {
+    animation: photo-in 0.4s ease;
+  }
+
+  @keyframes photo-in {
+    from { opacity: 0; transform: scale(0.96); }
   }
 }

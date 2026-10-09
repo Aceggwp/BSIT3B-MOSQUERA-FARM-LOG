@@ -41,3 +41,13 @@ class InfoScopingTests(TestCase):
         self.record.refresh_from_db()
         self.assertEqual(self.record.age, 31)
         self.assertEqual(self.record.user, self.staff)
+
+    def test_save_message_renders_as_toast(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse('info:info_save_ajax'), {
+            'id': self.record.id, 'name': 'Scoped Person',
+            'age': '31', 'address': 'Somewhere', 'email': '',
+        })
+        response = self.client.get(reverse('info:info_list'))
+        self.assertContains(response, 'toast-container')
+        self.assertContains(response, 'updated successfully')

@@ -24,6 +24,20 @@ class FarmModelTests(TestCase):
         self.assertEqual(defaults_for("lettuce")["water_every_days"], 1)
         self.assertEqual(defaults_for("tomato")["days_to_harvest"], 70)
 
+    def test_reminder_status_badges(self):
+        plant = Plant.objects.create(user=self.user, name="Lettuce", planting_date=date.today())
+        late = Reminder.objects.create(user=self.user, plant=plant, kind="water",
+                                       message="late", due_date=date.today() - timedelta(days=3))
+        today_r = Reminder.objects.create(user=self.user, plant=plant, kind="custom",
+                                          message="now", due_date=date.today())
+        self.assertEqual(late.days_overdue, 3)
+        self.assertTrue(today_r.is_due_today)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("farm:reminder_list"))
+        self.assertContains(response, "3d overdue")
+        self.assertContains(response, "Due today")
+        self.assertContains(response, "badge-pulse")
+
     def test_reminder_defaults_generation(self):
         plant = Plant.objects.create(user=self.user, name="Tomato", planting_date=date.today())
         plant.apply_vegetable_defaults()
@@ -116,6 +130,32 @@ class FarmViewTests(TestCase):
         })
         self.assertEqual(response.status_code, 400)
 
+    def test_carelog_list_page(self):
+        p1 = Plant.objects.create(user=self.user, name="Pepper", planting_date=date.today())
+        p2 = Plant.objects.create(user=self.user, name="Lettuce", planting_date=date.today())
+        CareLog.objects.create(user=self.user, plant=p1, date=date.today(),
+                               category="pest", description="Aphids")
+        CareLog.objects.create(user=self.user, plant=p2, date=date.today(),
+                               category="growth", description="Sprouted")
+        response = self.client.get(reverse("farm:carelog_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aphids")
+        self.assertContains(response, "Sprouted")
+        filtered = self.client.get(reverse("farm:carelog_list"), {"plant": p1.id})
+        self.assertContains(filtered, "Aphids")
+        self.assertNotContains(filtered, "Sprouted")
+        by_cat = self.client.get(reverse("farm:carelog_list"), {"category": "pest"})
+        self.assertContains(by_cat, "Aphids")
+        self.assertNotContains(by_cat, "Sprouted")
+
+    def test_carelog_list_scoped(self):
+        other = get_user_model().objects.create_user(username="log_other", password="secret1234")
+        plant = Plant.objects.create(user=other, name="Secret", planting_date=date.today())
+        CareLog.objects.create(user=other, plant=plant, date=date.today(),
+                               category="note", description="Hidden gem")
+        response = self.client.get(reverse("farm:carelog_list"))
+        self.assertNotContains(response, "Hidden gem")
+
 
 class FarmQuickLogTests(TestCase):
     def setUp(self):
@@ -162,12 +202,33 @@ class FarmQuickLogTests(TestCase):
     def test_dashboard_shows_quick_log(self):
         self.assertContains(self.client.get(reverse("farm:dashboard")), "Quick log")
 
+    def test_action_message_renders_as_toast(self):
+        response = self.client.post(reverse("farm:quick_water_all"), follow=True)
+        self.assertContains(response, "toast-container")
+        self.assertContains(response, "Watered 2 plant(s)")
+
     def test_sidebar_badges_and_collapse(self):
         Reminder.objects.create(user=self.user, plant=self.p1,
                                 kind="water", message="Water", due_date=date.today())
         response = self.client.get(reverse("farm:dashboard"))
         self.assertContains(response, "farmMenu")
         self.assertContains(response, "count-badge")
+
+    def test_stats_ajax_counts(self):
+        Reminder.objects.create(user=self.user, plant=self.p1,
+                                kind="water", message="Water", due_date=date.today())
+        data = self.client.get(reverse("farm:stats_ajax")).json()
+        self.assertEqual(data, {"plant_count": 2, "due_count": 1, "ready_count": 0})
+
+    def test_stats_ajax_scoped_per_user(self):
+        other = get_user_model().objects.create_user(username="stat_other", password="secret1234")
+        Plant.objects.create(user=other, name="Hidden", planting_date=date.today())
+        data = self.client.get(reverse("farm:stats_ajax")).json()
+        self.assertEqual(data["plant_count"], 2)
+
+    def test_stats_ajax_requires_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("farm:stats_ajax")).status_code, 302)
 
     def test_sidebar_farm_collapsed_off_farm(self):
         response = self.client.get(reverse("info:info_list"))
@@ -188,6 +249,36 @@ class FarmQuickLogTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertTrue(GardenArea.objects.filter(user=self.user, name="Bed A").exists())
+
+    def test_area_edit_and_delete(self):
+        area = GardenArea.objects.create(user=self.user, name="Bed", rows=2, cols=2)
+        response = self.client.post(reverse("farm:area_save_ajax"), {
+            "id": area.id, "name": "Bed Renamed", "kind": "yard", "rows": 3, "cols": 3,
+        })
+        self.assertEqual(response.status_code, 200)
+        area.refresh_from_db()
+        self.assertEqual((area.name, area.rows), ("Bed Renamed", 3))
+        plant = Plant.objects.create(user=self.user, name="Lettuce", area=area,
+                                     planting_date=date.today())
+        response = self.client.post(reverse("farm:area_delete_ajax", args=[area.id]))
+        self.assertEqual(response.json()["status"], "deleted")
+        plant.refresh_from_db()
+        self.assertIsNone(plant.area)  # unplaced, not deleted
+
+    def test_area_page_has_crud_buttons(self):
+        response = self.client.get(reverse("farm:area_list"))
+        self.assertContains(response, "deleteAreaModal")
+        self.assertContains(response, "area_id")
+
+    def test_generate_reminders_is_idempotent(self):
+        plant = Plant.objects.create(user=self.user, name="Rambutan",
+                                     planting_date=date.today())
+        url = reverse("farm:plant_generate_reminders", args=[plant.id])
+        first = self.client.post(url).json()["count"]
+        second = self.client.post(url).json()["count"]
+        self.assertEqual(first, 3)
+        self.assertEqual(second, 0)
+        self.assertEqual(plant.reminders.filter(is_done=False).count(), 3)
 
     def test_plant_list_provides_plot_picker_data(self):
         area = GardenArea.objects.create(user=self.user, name="Bed", rows=2, cols=3)
@@ -550,10 +641,91 @@ class FarmMapGridTests(TestCase):
         response = self.client.get(reverse("farm:map"))
         self.assertContains(response, "Off-grid")
 
+    def test_auto_arrange_places_unplaced(self):
+        from apps.farm.companion import find_spot
+        Plant.objects.create(user=self.user, name="Okra", planting_date=date.today())
+        response = self.client.post(
+            reverse("farm:map_auto_arrange"), {},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.json()["placed"], 1)
+        okra = Plant.objects.get(name="Okra")
+        self.assertEqual(okra.area, self.area)
+        self.assertContains(self.client.get(reverse("farm:map")), "Auto-arrange")
+
+    def test_auto_arrange_avoids_bad_neighbor(self):
+        Plant.objects.create(user=self.user, name="Tomato", area=self.area,
+                             pos_x=0, pos_y=0, planting_date=date.today())
+        potato = Plant.objects.create(user=self.user, name="Potato",
+                                      planting_date=date.today())
+        self.client.post(reverse("farm:map_auto_arrange"))
+        potato.refresh_from_db()
+        # (1,0) is empty but adjacent to tomato -> must not be chosen
+        self.assertNotEqual((potato.pos_x, potato.pos_y), (1, 0))
+        self.assertEqual(potato.area, self.area)
+
+    def test_auto_arrange_full_plot_skips(self):
+        Plant.objects.create(user=self.user, name="A", area=self.area,
+                             pos_x=0, pos_y=0, planting_date=date.today())
+        Plant.objects.create(user=self.user, name="B", area=self.area,
+                             pos_x=1, pos_y=0, planting_date=date.today())
+        Plant.objects.create(user=self.user, name="C", area=self.area,
+                             pos_x=2, pos_y=0, planting_date=date.today())
+        Plant.objects.create(user=self.user, name="D", area=self.area,
+                             pos_x=0, pos_y=1, planting_date=date.today())
+        Plant.objects.create(user=self.user, name="E", area=self.area,
+                             pos_x=1, pos_y=1, planting_date=date.today())
+        Plant.objects.create(user=self.user, name="F", area=self.area,
+                             pos_x=2, pos_y=1, planting_date=date.today())
+        Plant.objects.create(user=self.user, name="Extra", planting_date=date.today())
+        response = self.client.post(
+            reverse("farm:map_auto_arrange"), {},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.json(), {"status": "success", "placed": 0, "skipped": 1})
+
     def test_unplaced_plant_section(self):
         Plant.objects.create(user=self.user, name="Okra", planting_date=date.today())
         response = self.client.get(reverse("farm:map"))
         self.assertContains(response, "Unplaced plants")
+
+    def test_move_plant_within_plot(self):
+        plant = Plant.objects.create(user=self.user, name="Lettuce", area=self.area,
+                                     pos_x=0, pos_y=0, planting_date=date.today())
+        response = self.client.post(reverse("farm:plant_move_ajax", args=[plant.id]), {
+            "area": self.area.id, "pos_x": 2, "pos_y": 1,
+        })
+        self.assertEqual(response.json()["status"], "moved")
+        plant.refresh_from_db()
+        self.assertEqual((plant.pos_x, plant.pos_y), (2, 1))
+
+    def test_move_plant_across_plots(self):
+        other = GardenArea.objects.create(user=self.user, name="Other", rows=2, cols=2)
+        plant = Plant.objects.create(user=self.user, name="Lettuce", area=self.area,
+                                     pos_x=0, pos_y=0, planting_date=date.today())
+        self.client.post(reverse("farm:plant_move_ajax", args=[plant.id]), {
+            "area": other.id, "pos_x": 1, "pos_y": 1,
+        })
+        plant.refresh_from_db()
+        self.assertEqual(plant.area, other)
+
+    def test_move_rejects_out_of_bounds(self):
+        plant = Plant.objects.create(user=self.user, name="Lettuce", area=self.area,
+                                     pos_x=0, pos_y=0, planting_date=date.today())
+        response = self.client.post(reverse("farm:plant_move_ajax", args=[plant.id]), {
+            "area": self.area.id, "pos_x": 9, "pos_y": 9,
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_move_other_users_plant_blocked(self):
+        other = get_user_model().objects.create_user(username="mover_other", password="secret1234")
+        plant = Plant.objects.create(user=other, name="Lettuce", area=self.area,
+                                     pos_x=0, pos_y=0, planting_date=date.today())
+        other_area = GardenArea.objects.create(user=other, name="O", rows=2, cols=2)
+        plant.area = other_area
+        plant.save()
+        response = self.client.post(reverse("farm:plant_move_ajax", args=[plant.id]), {
+            "area": self.area.id, "pos_x": 1, "pos_y": 1,
+        })
+        self.assertEqual(response.status_code, 404)
 
 
 class FarmCompanionTests(TestCase):

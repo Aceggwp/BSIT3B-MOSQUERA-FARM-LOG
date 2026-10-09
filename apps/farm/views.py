@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -149,6 +149,18 @@ def dashboard(request):
     return render(request, "farm/dashboard.html", context)
 
 
+@login_required(login_url="login")
+def stats_ajax(request):
+    """Live counters for the dashboard cards + sidebar badges. No page reload."""
+    today = date.today()
+    plants = _plants(request.user)
+    return JsonResponse({
+        "plant_count": plants.count(),
+        "due_count": _reminders(request.user).filter(is_done=False, due_date__lte=today).count(),
+        "ready_count": sum(1 for p in plants if p.is_ready),
+    })
+
+
 # ---------- plants ----------
 
 @login_required(login_url="login")
@@ -280,8 +292,13 @@ def plant_delete_ajax(request, pk):
 @require_POST
 def plant_generate_reminders(request, pk):
     plant = _plant(request.user, pk)
-    created = Reminder.objects.bulk_create(Reminder.build_defaults_for_plant(plant))
-    messages.success(request, f"{len(created)} reminders generated for {plant.name}.")
+    pending_kinds = set(plant.reminders.filter(is_done=False).values_list("kind", flat=True))
+    fresh = [r for r in Reminder.build_defaults_for_plant(plant) if r.kind not in pending_kinds]
+    created = Reminder.objects.bulk_create(fresh)
+    if created:
+        messages.success(request, f"{len(created)} reminders generated for {plant.name}.")
+    else:
+        messages.info(request, f"{plant.name} already has pending reminders — nothing duplicated.")
     return JsonResponse({"status": "success", "count": len(created)})
 
 
@@ -324,6 +341,67 @@ def area_delete_ajax(request, pk):
     area = _area(request.user, pk)
     area.delete()
     return JsonResponse({"status": "deleted"})
+
+
+@login_required(login_url="login")
+@require_POST
+def map_auto_arrange(request):
+    """Automation: place unplaced (or off-grid) plants into empty cells.
+
+    Optional POST `area` limits the run to one plot. Cells that would create
+    a bad companion pairing are avoided when alternatives exist.
+    """
+    from .companion import find_spot
+    area_id = request.POST.get("area")
+    if area_id:
+        areas = [_area(request.user, area_id)]
+        unplaced = _plants(request.user).filter(area__isnull=True)
+    else:
+        areas = list(_areas(request.user))
+        unplaced = _plants(request.user).filter(area__isnull=True)
+    unplaced = list(unplaced.order_by("name"))
+    placed, skipped = 0, 0
+    for area in areas:
+        occupants = [p for p in area.plants.all()]
+        for plant in [p for p in unplaced]:
+            spot = find_spot(area, occupants, plant.name)
+            if spot is None:
+                continue
+            plant.area = area
+            plant.pos_x, plant.pos_y = spot
+            plant.save(update_fields=["area", "pos_x", "pos_y"])
+            occupants.append(plant)
+            unplaced.remove(plant)
+            placed += 1
+    skipped = len(unplaced)
+    if placed:
+        messages.success(request, f"Auto-arranged {placed} plant(s).")
+    if skipped:
+        messages.warning(request, f"{skipped} plant(s) left: no empty cells.")
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"status": "success", "placed": placed, "skipped": skipped})
+    return redirect("farm:map")
+
+
+@login_required(login_url="login")
+@require_POST
+def plant_move_ajax(request, pk):
+    """Free-move a plant to another cell (same or different plot)."""
+    plant = _plant(request.user, pk)
+    area_id = request.POST.get("area")
+    if not area_id:
+        return JsonResponse({"error": "Plot is required."}, status=400)
+    area = _area(request.user, area_id)
+    try:
+        x, y = int(request.POST.get("pos_x")), int(request.POST.get("pos_y"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Cell coordinates must be numbers."}, status=400)
+    if not (0 <= x < area.cols and 0 <= y < area.rows):
+        return JsonResponse({"error": f"Cell ({x},{y}) is outside {area.name}."}, status=400)
+    plant.area = area
+    plant.pos_x, plant.pos_y = x, y
+    plant.save(update_fields=["area", "pos_x", "pos_y"])
+    return JsonResponse({"status": "moved", "area": area.id, "pos_x": x, "pos_y": y})
 
 
 @login_required(login_url="login")
@@ -479,6 +557,27 @@ def ai_advice_ajax(request, pk):
 
 
 # ---------- care history ----------
+
+@login_required(login_url="login")
+def carelog_list_page(request):
+    """All care-history entries across the user's plants, newest first."""
+    logs = CareLog.objects.select_related("plant").order_by("-date", "-created_at")
+    if not request.user.is_superuser:
+        logs = logs.filter(user=request.user)
+    plant_id = request.GET.get("plant", "").strip()
+    category = request.GET.get("category", "").strip()
+    if plant_id:
+        logs = logs.filter(plant_id=int(plant_id)) if plant_id.isdigit() else logs.none()
+    if category:
+        logs = logs.filter(category=category)
+    paginator = Paginator(logs, 15)
+    page = paginator.get_page(request.GET.get("page", 1))
+    plants = _plants(request.user).order_by("name")
+    return render(request, "farm/carelogs.html", {
+        "logs": page, "plants": plants,
+        "plant_id": plant_id, "category": category,
+        "categories": CareLog.CATEGORY_CHOICES,
+    })
 
 @login_required(login_url="login")
 @require_POST

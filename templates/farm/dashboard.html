@@ -14,13 +14,13 @@
 <br>
 <div class="row row-deck row-cards">
   <div class="col-sm-6 col-lg-3">
-    <div class="card"><div class="card-body"><div class="subheader">Plants</div><div class="h1">{{ plant_count }}</div></div></div>
+    <div class="card"><div class="card-body"><div class="subheader">Plants</div><div class="h1" id="stat-plants">{{ plant_count }}</div></div></div>
   </div>
   <div class="col-sm-6 col-lg-3">
-    <div class="card"><div class="card-body"><div class="subheader">Due reminders</div><div class="h1 text-danger">{{ due_count }}</div></div></div>
+    <div class="card"><div class="card-body"><div class="subheader">Due reminders</div><div class="h1 text-danger" id="stat-due">{{ due_count }}</div></div></div>
   </div>
   <div class="col-sm-6 col-lg-3">
-    <div class="card"><div class="card-body"><div class="subheader">Ready to harvest</div><div class="h1 text-success">{{ ready|length }}</div></div></div>
+    <div class="card"><div class="card-body"><div class="subheader">Ready to harvest</div><div class="h1 text-success" id="stat-ready">{{ ready|length }}</div></div></div>
   </div>
   <div class="col-sm-6 col-lg-3">
     <div class="card"><div class="card-body"><a href="{% url 'farm:map' %}" class="btn btn-outline-primary w-100">Garden Map</a></div></div>
@@ -71,7 +71,7 @@
       <div class="list-group list-group-flush">
         {% for r in due %}
         <div class="list-group-item d-flex justify-content-between align-items-center">
-          <div><strong>{{ r.plant.name }}</strong> — {{ r.message }}<br><small class="text-muted">{{ r.due_date }}{% if r.due_date < today %} · overdue{% endif %}{% if r.weather_paused %} · paused for rain{% endif %}</small></div>
+          <div><strong>{{ r.plant.name }}</strong> — {{ r.message }}<br><small class="text-muted">{{ r.due_date }}{% if r.due_date < today %} · overdue{% endif %}{% if r.weather_paused %} · paused for rain{% endif %}</small><br>{% include "farm/_reminder_badges.html" with r=r %}</div>
           <form method="post" action="{% url 'farm:reminder_toggle_ajax' r.id %}" class="m-0 reminder-toggle-form">{% csrf_token %}<button class="btn btn-sm btn-success">Done</button></form>
         </div>
         {% empty %}<div class="list-group-item text-muted">No due reminders. Plants are happy.</div>{% endfor %}

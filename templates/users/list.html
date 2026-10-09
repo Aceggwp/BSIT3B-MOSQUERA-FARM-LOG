@@ -57,13 +57,11 @@
     </div>
 </form>
 
-<div id="userAlert" class="alert alert-info alert-dismissible fade {% if not messages %}d-none{% endif %}{% if messages %}show{% endif %}" role="alert">
+<div id="userAlert" class="alert alert-info alert-dismissible fade d-none" role="alert">
     <i class="fas fa-circle-check alert-icon" aria-hidden="true"></i>
     <div>
         <h4 class="alert-heading">Success</h4>
-        <div class="alert-description" id="userAlertText">
-            {% for message in messages %}{{ message }}{% endfor %}
-        </div>
+        <div class="alert-description" id="userAlertText"></div>
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
