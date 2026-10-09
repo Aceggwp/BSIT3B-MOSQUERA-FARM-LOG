@@ -1,4 +1,4 @@
-# ProjectV3 — Mosquera Farm Log
+# MOSQUERA Farm Logs
 
 Django farm management app: planting & harvest tracking, custom reminders
 (weather-adaptive via Open-Meteo), visual garden layout map with companion
